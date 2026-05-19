@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>UNBED — Alarm</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111;
+    --border: #222;
+    --accent: #e8ff47;
+    --accent2: #ff4757;
+    --text: #f0f0f0;
+    --muted: #555;
+    --mono: 'Space Mono', monospace;
+    --display: 'Bebas Neue', cursive;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    width: 100%;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .logo {
+    font-family: var(--display);
+    font-size: 2rem;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+  }
+  .tagline {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ── SCREENS ── */
+  .screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 420px;
+    padding: 28px 20px;
+    gap: 24px;
+    flex: 1;
+  }
+  .screen.active { display: flex; }
+
+  /* ── CLOCK ── */
+  .live-clock {
+    font-family: var(--display);
+    font-size: 5.5rem;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    line-height: 1;
+    text-align: center;
+  }
+  .live-date {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* ── ALARM LIST ── */
+  .section-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    align-self: flex-start;
+    padding-left: 2px;
+  }
+  .alarm-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .alarm-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .alarm-item:hover { border-color: var(--accent); }
+  .alarm-item.active-alarm { border-color: var(--accent); }
+  .alarm-time-display {
+    font-family: var(--display);
+    font-size: 2rem;
+    letter-spacing: 0.06em;
+    color: var(--text);
+  }
+  .alarm-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .alarm-label-text {
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .toggle {
+    width: 40px;
+    height: 22px;
+    background: var(--border);
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.25s;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    background: var(--bg);
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform 0.25s;
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  .delete-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 4px 8px;
+    transition: color 0.2s;
+    font-family: var(--mono);
+  }
+  .delete-btn:hover { color: var(--accent2); }
+
+  /* ── ADD ALARM FORM ── */
+  .add-form {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-row label {
+    font-size: 0.58rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .form-row input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    padding: 10px 12px;
+    border-radius: 3px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  .form-row input:focus { border-color: var(--accent); }
+  input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+  .btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 12px 24px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: opacity 0.2s;
+    width: 100%;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn.danger { background: var(--accent2); color: #fff; }
+  .btn.ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn.ghost:hover { color: var(--text); border-color: var(--text); }
+
+  /* ── QR SETUP SCREEN ── */
+  .qr-box {
+    background: #fff;
+    padding: 16px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .qr-instructions {
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.8;
+    letter-spacing: 0.05em;
+  }
+  .qr-instructions strong { color: var(--accent); }
+  .qr-code-value {
+    font-size: 0.55rem;
+    color: var(--muted);
+    word-break: break-all;
+    text-align: center;
+    background: var(--surface);
+    padding: 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    width: 100%;
+  }
+
+  /* ── RINGING SCREEN ── */
+  #ringing-screen {
+    justify-content: center;
+    gap: 32px;
+  }
+  .ringing-time {
+    font-family: var(--display);
+    font-size: 7rem;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    color: var(--accent);
+    text-align: center;
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .ringing-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+  .scan-prompt {
+    font-size: 0.75rem;
+    color: var(--text);
+    text-align: center;
+    line-height: 1.9;
+    letter-spacing: 0.06em;
+    border: 1px solid var(--accent);
+    padding: 16px 20px;
+    border-radius: 4px;
+    width: 100%;
+    background: rgba(232, 255, 71, 0.04);
+  }
+  .scan-prompt strong { color: var(--accent); display: block; margin-bottom: 4px; }
+
+  /* ── SCANNER ── */
+  #scanner-container {
+    width: 100%;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 2px solid var(--accent);
+    background: #000;
+  }
+  #html5-qrcode-element { width: 100% !important; }
+
+  /* ── DISMISSED ── */
+  .big-tick {
+    font-size: 5rem;
+    text-align: center;
+    animation: pop 0.4s cubic-bezier(0.2, 1.4, 0.5, 1) both;
+  }
+  @keyframes pop {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .dismissed-msg {
+    font-family: var(--display);
+    font-size: 2.8rem;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    text-align: center;
+  }
+  .dismissed-sub {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  /* ── BOTTOM NAV ── */
+  nav {
+    width: 100%;
+    max-width: 420px;
+    border-top: 1px solid var(--border);
+    padding: 16px 20px;
+    display: flex;
+    gap: 10px;
+  }
+  nav button {
+    flex: 1;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 10px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  nav button.active, nav button:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* Noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  .empty-state {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-align: center;
+    padding: 24px 0;
+    text-transform: uppercase;
+  }
+
+  .alarm-ring-bg {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 0;
+    animation: ringBg 1s ease-in-out infinite alternate;
+  }
+  @keyframes ringBg {
+    from { background: #0a0a0a; }
+    to { background: #0f0e00; }
+  }
+  #ringing-screen > * { position: relative; z-index: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">UNBED</div>
+  <div class="tagline">No scan, no snooze.</div>
+</header>
+
+<!-- SCREEN: HOME -->
+<div class="screen active" id="home-screen">
+  <div class="live-clock" id="live-clock">00:00</div>
+  <div class="live-date" id="live-date">—</div>
+
+  <div class="section-label">Your Alarms</div>
+  <div class="alarm-list" id="alarm-list">
+    <div class="empty-state" id="empty-state">No alarms set yet.</div>
+  </div>
+
+  <div class="section-label">Add New Alarm</div>
+  <div class="add-form">
+    <div class="form-row">
+      <label>Time</label>
+      <input type="time" id="new-alarm-time" />
+    </div>
+    <div class="form-row">
+      <label>Label (optional)</label>
+      <input type="text" id="new-alarm-label" placeholder="e.g. Morning gym" maxlength="30" />
+    </div>
+    <button class="btn" onclick="addAlarm()">+ Set Alarm</button>
+  </div>
+</div>
+
+<!-- SCREEN: QR SETUP -->
+<div class="screen" id="qr-screen">
+  <div class="section-label">Your Dismiss QR Code</div>
+  <div class="qr-box" id="qr-display"></div>
+  <p class="qr-instructions">
+    <strong>Print this or stick it somewhere across the room.</strong><br>
+    When your alarm fires, you must physically walk over and scan this code to dismiss it.
+  </p>
+  <div class="qr-code-value" id="qr-code-value-display">—</div>
+  <button class="btn" onclick="regenerateQR()">↺ Generate New Code</button>
+</div>
+
+<!-- SCREEN: RINGING -->
+<div class="screen" id="ringing-screen">
+  <div class="alarm-ring-bg"></div>
+  <div class="ringing-label">WAKE UP !</div>
+  <div class="ringing-time" id="ringing-time">00:00</div>
+  <div class="ringing-label" id="ringing-alarm-label">—</div>
+  <div class="scan-prompt">
+    <strong>⬛ SCAN YOUR QR CODE TO DISMISS</strong>
+    Walk to where you placed your QR code and scan it.
+  </div>
+  <div id="scanner-container">
+    <div id="html5-qrcode-element"></div>
+  </div>
+  <button class="btn ghost" onclick="testDismiss()" style="font-size:0.55rem;">
+    Testing without QR? Tap here
+  </button>
+</div>
+
+<!-- SCREEN: DISMISSED -->
+<div class="screen" id="dismissed-screen">
+  <div class="big-tick">✅</div>
+  <div class="dismissed-msg">YOU'RE UP!</div>
+  <div class="dismissed-sub">Alarm dismissed. Now go smash it.</div>
+  <button class="btn" onclick="showHome()" style="margin-top:16px;">← Back to Alarms</button>
+</div>
+
+<nav id="main-nav">
+  <button class="active" onclick="showHome()">Alarms</button>
+  <button onclick="showQR()">QR Code</button>
+</nav>
+
+<audio id="alarm-audio" loop>
+  <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA..." type="audio/wav">
+</audio>
+
+<script>
+// ── STATE ──
+let alarms = JSON.parse(localStorage.getItem('unbed_alarms') || '[]');
+let qrSecret = localStorage.getItem('unbed_qr_secret') || generateSecret();
+let html5QrCode = null;
+let checkInterval = null;
+let activeRingingAlarmId = null;
+let audioCtx = null;
+let alarmOscillators = [];
+let triggeredThisMinute = {}; // guard: alarmId -> "HH:MM" last triggered
+
+saveSecret();
+renderAlarms();
+startClock();
+startAlarmCheck();
+requestWakeLock();
+
+function generateSecret() {
+  return 'UNBED-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+}
+function saveSecret() {
+  localStorage.setItem('unbed_qr_secret', qrSecret);
+}
+
+// ── CLOCK ──
+function startClock() {
+  function tick() {
+    const now = new Date();
+    document.getElementById('live-clock').textContent =
+      now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    document.getElementById('live-date').textContent =
+      now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
+    document.getElementById('ringing-time').textContent =
+      now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ── WAKE LOCK (keeps screen/tab alive) ──
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      let wakeLock = await navigator.wakeLock.request('screen');
+      // Re-acquire if released (e.g. tab switch)
+      document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible') {
+          try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+        }
+      });
+    }
+  } catch(e) {}
+}
+
+// ── ALARM CHECK (every second, with per-alarm minute guard) ──
+function startAlarmCheck() {
+  checkInterval = setInterval(() => {
+    if (activeRingingAlarmId) return; // already ringing
+    const now = new Date();
+    const hhmm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    alarms.forEach(alarm => {
+      if (!alarm.enabled) return;
+      if (alarm.time !== hhmm) return;
+      // Only fire once per minute for this alarm
+      if (triggeredThisMinute[alarm.id] === hhmm) return;
+      triggeredThisMinute[alarm.id] = hhmm;
+      triggerAlarm(alarm);
+    });
+  }, 1000);
+}
+
+function triggerAlarm(alarm) {
+  activeRingingAlarmId = alarm.id;
+  document.getElementById('ringing-alarm-label').textContent = alarm.label || 'ALARM';
+  showScreen('ringing-screen');
+  hideNav();
+  startAlarmSound();
+  startScanner();
+}
+
+// ── SOUND (Web Audio API beep) ──
+function startAlarmSound() {
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function beepLoop() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.4);
+      alarmOscillators.push(osc);
+    }
+    beepLoop();
+    const loop = setInterval(() => {
+      if (!audioCtx) { clearInterval(loop); return; }
+      beepLoop();
+    }, 800);
+    alarmOscillators._loop = loop;
+  } catch(e) {}
+}
+
+function stopAlarmSound() {
+  if (alarmOscillators._loop) clearInterval(alarmOscillators._loop);
+  alarmOscillators = [];
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+}
+
+// ── SCANNER ──
+function startScanner() {
+  setTimeout(() => {
+    try {
+      html5QrCode = new Html5Qrcode("html5-qrcode-element");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 220, height: 220 } },
+        (decodedText) => {
+          if (decodedText === qrSecret) {
+            dismissAlarm();
+          }
+        },
+        () => {}
+      ).catch(err => {
+        console.warn("Camera not available:", err);
+      });
+    } catch(e) {}
+  }, 500);
+}
+
+function stopScanner() {
+  if (html5QrCode) {
+    html5QrCode.stop().catch(() => {});
+    html5QrCode = null;
+  }
+}
+
+function dismissAlarm() {
+  stopScanner();
+  stopAlarmSound();
+  activeRingingAlarmId = null;
+  showScreen('dismissed-screen');
+  hideNav();
+}
+
+function testDismiss() {
+  dismissAlarm();
+}
+
+// ── ADD / DELETE ALARMS ──
+function addAlarm() {
+  const time = document.getElementById('new-alarm-time').value;
+  const label = document.getElementById('new-alarm-label').value.trim();
+  if (!time) { alert('Please set a time first.'); return; }
+  const alarm = { id: Date.now(), time, label, enabled: true };
+  alarms.push(alarm);
+  save();
+  renderAlarms();
+  document.getElementById('new-alarm-time').value = '';
+  document.getElementById('new-alarm-label').value = '';
+}
+
+function deleteAlarm(id) {
+  alarms = alarms.filter(a => a.id !== id);
+  save();
+  renderAlarms();
+}
+
+function toggleAlarm(id) {
+  const a = alarms.find(a => a.id === id);
+  if (a) { a.enabled = !a.enabled; save(); renderAlarms(); }
+}
+
+function save() {
+  localStorage.setItem('unbed_alarms', JSON.stringify(alarms));
+}
+
+function renderAlarms() {
+  const list = document.getElementById('alarm-list');
+  const empty = document.getElementById('empty-state');
+  const items = alarms.map(a => `
+    <div class="alarm-item ${a.enabled ? 'active-alarm' : ''}">
+      <div>
+        <div class="alarm-time-display">${a.time}</div>
+        <div class="alarm-label-text">${a.label || 'Alarm'}</div>
+      </div>
+      <div class="alarm-meta">
+        <div class="toggle ${a.enabled ? 'on' : ''}" onclick="toggleAlarm(${a.id})"></div>
+        <button class="delete-btn" onclick="deleteAlarm(${a.id})">✕</button>
+      </div>
+    </div>
+  `).join('');
+  list.innerHTML = items || '';
+  empty.style.display = alarms.length ? 'none' : 'block';
+  if (!alarms.length) list.appendChild(empty);
+}
+
+// ── QR CODE ──
+function renderQR() {
+  const container = document.getElementById('qr-display');
+  container.innerHTML = '';
+  document.getElementById('qr-code-value-display').textContent = qrSecret;
+  new QRCode(container, {
+    text: qrSecret,
+    width: 200,
+    height: 200,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+  });
+}
+
+function regenerateQR() {
+  if (!confirm('Generate a new QR code? Your old one will stop working.')) return;
+  qrSecret = generateSecret();
+  saveSecret();
+  renderQR();
+}
+
+// ── NAVIGATION ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function showHome() {
+  stopScanner();
+  stopAlarmSound();
+  activeRingingAlarmId = null;
+  showNav();
+  showScreen('home-screen');
+  setActiveNav(0);
+}
+function showQR() {
+  showScreen('qr-screen');
+  setActiveNav(1);
+  renderQR();
+}
+function hideNav() { document.getElementById('main-nav').style.display = 'none'; }
+function showNav() { document.getElementById('main-nav').style.display = 'flex'; }
+function setActiveNav(i) {
+  document.querySelectorAll('nav button').forEach((b, idx) => {
+    b.classList.toggle('active', idx === i);
+  });
+}
+
+// Default time to current + 1 min
+const now = new Date();
+now.setMinutes(now.getMinutes() + 1);
+document.getElementById('new-alarm-time').value =
+  now.toTimeString().slice(0, 5);
+</script>
+</body>
+</html>
