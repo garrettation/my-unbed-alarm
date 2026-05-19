@@ -545,40 +545,77 @@ function triggerAlarm(alarm) {
   showScreen('ringing-screen');
   hideNav();
   startAlarmSound();
+  startVibration();
   startScanner();
 }
 
-// ── SOUND (Web Audio API beep) ──
+// ── SOUND ──
+// Plays a two-tone ascending beep pattern on a continuous loop.
+// We schedule Web Audio nodes ahead of time to avoid gaps.
 function startAlarmSound() {
   try {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    function beepLoop() {
+
+    // Resume context if suspended (mobile autoplay policy)
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    let nextBeat = audioCtx.currentTime;
+
+    function scheduleBeats() {
       if (!audioCtx) return;
+      // Keep ~2 seconds of beats scheduled ahead
+      while (nextBeat < audioCtx.currentTime + 2.0) {
+        scheduleTone(nextBeat,       660, 0.18); // first beep
+        scheduleTone(nextBeat + 0.2, 880, 0.18); // second beep (higher)
+        nextBeat += 0.9; // gap before next pair
+      }
+    }
+
+    function scheduleTone(startTime, freq, duration) {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.connect(gain);
       gain.connect(audioCtx.destination);
-      osc.frequency.value = 880;
-      osc.type = 'square';
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-      osc.start(audioCtx.currentTime);
-      osc.stop(audioCtx.currentTime + 0.4);
-      alarmOscillators.push(osc);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.6, startTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.05);
     }
-    beepLoop();
-    const loop = setInterval(() => {
-      if (!audioCtx) { clearInterval(loop); return; }
-      beepLoop();
-    }, 800);
-    alarmOscillators._loop = loop;
-  } catch(e) {}
+
+    scheduleBeats();
+    // Reschedule every 500ms to keep the buffer topped up
+    alarmOscillators._loop = setInterval(() => {
+      if (!audioCtx) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      scheduleBeats();
+    }, 500);
+
+  } catch(e) { console.warn('Audio error:', e); }
 }
 
 function stopAlarmSound() {
   if (alarmOscillators._loop) clearInterval(alarmOscillators._loop);
   alarmOscillators = [];
-  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  if (audioCtx) { try { audioCtx.close(); } catch(e) {} audioCtx = null; }
+}
+
+// ── VIBRATION ──
+let vibrationInterval = null;
+function startVibration() {
+  if (!navigator.vibrate) return;
+  // Pattern: buzz 400ms, pause 200ms, buzz 400ms, pause 800ms — repeat
+  function vibeLoop() {
+    navigator.vibrate([400, 200, 400, 800]);
+  }
+  vibeLoop();
+  vibrationInterval = setInterval(vibeLoop, 1800);
+}
+function stopVibration() {
+  if (vibrationInterval) { clearInterval(vibrationInterval); vibrationInterval = null; }
+  if (navigator.vibrate) navigator.vibrate(0);
 }
 
 // ── SCANNER ──
@@ -612,6 +649,7 @@ function stopScanner() {
 function dismissAlarm() {
   stopScanner();
   stopAlarmSound();
+  stopVibration();
   activeRingingAlarmId = null;
   showScreen('dismissed-screen');
   hideNav();
